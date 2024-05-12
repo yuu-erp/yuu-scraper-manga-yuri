@@ -13,3 +13,10 @@ export const readFile = (filePath: string, basePath?: string) => {
 
   return fs.readFileSync(fileDir, 'utf-8');
 };
+
+export const fulfilledPromises = <T extends Promise<any>>(promises: T[]) =>
+  Promise.allSettled(promises).then((results) =>
+    results
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => (result as PromiseFulfilledResult<Awaited<T>>).value),
+  );

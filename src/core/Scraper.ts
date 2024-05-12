@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { RequireAtLeastOne } from '../types/utils';
 import Monitor from './Monitor';
-
+import puppeteer, { KnownDevices } from 'puppeteer';
 export interface Proxy {
   ignoreReqHeaders?: boolean;
   followRedirect?: boolean;
@@ -70,5 +70,99 @@ export default class Scraper {
    */
   shouldMonitorChange(_oldPage: any, _newPage: any): boolean {
     return false;
+  }
+
+  protected async scrapePages(
+    scrapeFn: (page: number) => Promise<any>,
+    numOfPages: number,
+  ) {
+    const list = [];
+
+    for (let page = 1; page <= numOfPages; page++) {
+      const result = await scrapeFn(page);
+      console.log(`Scraped page ${page} [${this.id}]`);
+
+      // @ts-ignore
+      if (result?.length === 0) {
+        break;
+      }
+
+      list.push(result);
+    }
+    console.log('list: ', list);
+  }
+
+  protected async scrapeAllPages(scrapeFn: (page: number) => Promise<any>) {
+    const list = [];
+    let isEnd = false;
+    let page = 1;
+
+    while (!isEnd) {
+      try {
+        const result = await scrapeFn(page).catch((err) =>
+          console.log('result - error: ', err),
+        );
+        console.log('Scraped page result: ', result);
+        if (!result) {
+          isEnd = true;
+
+          break;
+        }
+
+        console.log(`Scraped page ${page} - ${this.id}`);
+
+        if (result.length === 0) {
+          isEnd = true;
+
+          break;
+        }
+
+        page++;
+
+        list.push(result);
+      } catch (err) {
+        isEnd = true;
+      }
+    }
+
+    console.log('list: ', list);
+  }
+
+  async getHtmlInPuppeteer(url: string): Promise<any> {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--disable-infobars',
+        '--disable-blink-features=AutomationControlled',
+      ],
+      devtools: false,
+      ignoreDefaultArgs: ['--enable-automation'],
+    });
+    const page = (await browser.pages())[0];
+    await page.setDefaultNavigationTimeout(60000);
+    await page.setRequestInterception(true);
+    page.on('request', (req: any) => {
+      if (req.resourceType() == 'font') {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+    await page.evaluateOnNewDocument(() => {
+      // Pass webdriver check
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => false,
+      });
+    });
+
+    await page.emulate(KnownDevices['iPhone 13']);
+    // Navigate to a website to see the user agent in action
+    await page.goto(`${this.baseURL}${url}`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.waitForTimeout(3000);
+    const html = await page.content();
+    await browser.close();
+    return html;
   }
 }

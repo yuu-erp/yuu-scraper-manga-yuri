@@ -12,6 +12,11 @@ export class MangaScraper extends Scraper {
   }
 
   async scrapeAllMangaPages() {
-    console.log('scrapeAllMangaPages');
+    const data = await this.scrapeAllPages(this.scrapeMangaPage.bind(this));
+    console.log('scrapeAllMangaPages - data: ', data);
+  }
+
+  async scrapeMangaPage(_page: number): Promise<any> {
+    throw new Error('scrapeMangaPage Not implemented');
   }
 }
