@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import scrapers, { getScraper } from '../../scrapers';
+import { MangaScraper } from '../../core/MangaScraper';
+import { readFile } from '../../utils';
 
 export default (program: Command) => {
   return program
@@ -37,11 +39,30 @@ export default (program: Command) => {
           },
         },
       ]);
+      // We do not support anime scraper yet
       if (type === 'anime') {
         throw new Error(`We do not support anime scraper yet: ${id}`);
       }
-      console.log('answers: ', { id, type });
       const scraper = getScraper(id);
-      console.log('scraper: ', scraper);
+      const dataInit = scraper.init();
+      console.log('dataInit: ', dataInit);
+
+      const mangaScraper = scraper as MangaScraper;
+      console.log('mangaScraper: ', mangaScraper);
+      const sources = await readFileAndFallback(`./data/${id}.json`, () =>
+        mangaScraper.scrapeAllMangaPages(),
+      );
+      console.log('sources: ', sources);
     });
+};
+
+const readFileAndFallback = <T>(
+  path: string,
+  fallbackFn?: () => Promise<T>,
+) => {
+  const fileContent: T = JSON.parse(readFile(path));
+  console.log(path, !!fileContent);
+
+  if (!fileContent) return fallbackFn();
+  return fileContent;
 };

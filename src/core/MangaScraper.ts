@@ -10,4 +10,8 @@ export class MangaScraper extends Scraper {
   ) {
     super(id, name, axiosConfig);
   }
+
+  async scrapeAllMangaPages() {
+    console.log('scrapeAllMangaPages');
+  }
 }
