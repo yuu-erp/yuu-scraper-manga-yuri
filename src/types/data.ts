@@ -1,3 +1,3 @@
 export interface SourceManga {
-  titles: string;
+  titles: string[];
 }

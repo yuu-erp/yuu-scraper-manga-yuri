@@ -103,7 +103,7 @@ export default class Scraper {
           console.log('result - error: ', err),
         );
         console.log('Scraped page result: ', result);
-        if (!result) {
+        if (!result || result.length === 0) {
           isEnd = true;
 
           break;
@@ -126,9 +126,11 @@ export default class Scraper {
     }
 
     console.log('list: ', list);
+    return list;
   }
 
   async getHtmlInPuppeteer(url: string): Promise<any> {
+    console.log('`${this.baseURL}${url}`', `${this.baseURL}${url}`);
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -139,7 +141,6 @@ export default class Scraper {
       ignoreDefaultArgs: ['--enable-automation'],
     });
     const page = (await browser.pages())[0];
-    await page.setDefaultNavigationTimeout(60000);
     await page.setRequestInterception(true);
     page.on('request', (req: any) => {
       if (req.resourceType() == 'font') {
@@ -160,7 +161,7 @@ export default class Scraper {
     await page.goto(`${this.baseURL}${url}`, {
       waitUntil: 'domcontentloaded',
     });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
     const html = await page.content();
     await browser.close();
     return html;
