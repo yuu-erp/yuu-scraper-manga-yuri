@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { RequireAtLeastOne } from '../types/utils';
 import Monitor from './Monitor';
-import puppeteer, { KnownDevices } from 'puppeteer';
+import { isVietnamese } from '../utils';
+import { SourceManga } from '../types/data';
+import logger from '../logger';
 export interface Proxy {
   ignoreReqHeaders?: boolean;
   followRedirect?: boolean;
@@ -21,6 +23,9 @@ export default class Scraper {
   proxy: Proxy;
   monitor: Monitor;
   locales: string[];
+  blacklistTitles: string[];
+  scrapingPages: number;
+
   constructor(
     id: string,
     name: string,
@@ -48,6 +53,8 @@ export default class Scraper {
     );
     this.id = id;
     this.name = name;
+    this.blacklistTitles = ['live action'];
+    this.scrapingPages = 2;
   }
 
   /**
@@ -71,25 +78,41 @@ export default class Scraper {
   shouldMonitorChange(_oldPage: any, _newPage: any): boolean {
     return false;
   }
+  /**
+   *
+   * @param titles an array of titles
+   * @returns titles that are not Vietnamese and a Vietnamese title
+   */
+  protected filterTitles(titles: string[]) {
+    const totalTitles = [...new Set(titles)].filter(
+      (title) => !this.blacklistTitles.includes(title.toLowerCase()),
+    );
 
-  protected async scrapePages(
-    scrapeFn: (page: number) => Promise<any>,
-    numOfPages: number,
-  ) {
-    const list = [];
+    const vietnameseTitle = totalTitles.filter(isVietnamese)[0] || null;
+    const nonVietnameseTitles = totalTitles.filter(
+      (title) => !isVietnamese(title),
+    );
 
-    for (let page = 1; page <= numOfPages; page++) {
-      const result = await scrapeFn(page);
-      console.log(`Scraped page ${page} [${this.id}]`);
+    return {
+      titles: nonVietnameseTitles,
+      vietnameseTitle,
+    };
+  }
+  /**
+   *
+   * @param path pattern of the parser (e.g. /anime/:id)
+   * @param url the url or path (e.g. /anime/23)
+   * @returns object with the matched params (e.g. { id: 23 })
+   */
+  parseTitle(title: string, separators = ['|', ',', ';', '-', '/']) {
+    const separator = separators.find((separator) => title.includes(separator));
 
-      // @ts-ignore
-      if (result?.length === 0) {
-        break;
-      }
+    const regex = new RegExp(`\\${separator}\\s+`);
 
-      list.push(result);
-    }
-    console.log('list: ', list);
+    return title
+      .split(regex)
+      .map((title) => title.trim())
+      .filter((title) => title);
   }
 
   protected async scrapeAllPages(scrapeFn: (page: number) => Promise<any>) {
@@ -100,10 +123,10 @@ export default class Scraper {
     while (!isEnd) {
       try {
         const result = await scrapeFn(page).catch((err) =>
-          console.log('result - error: ', err),
+          logger.error('error', err),
         );
-        console.log('Scraped page result: ', result);
-        if (!result || result.length === 0) {
+
+        if (!result) {
           isEnd = true;
 
           break;
@@ -117,6 +140,11 @@ export default class Scraper {
           break;
         }
 
+        if (page === 10) {
+          isEnd = true;
+
+          break;
+        }
         page++;
 
         list.push(result);
@@ -125,45 +153,12 @@ export default class Scraper {
       }
     }
 
-    console.log('list: ', list);
-    return list;
+    return this.removeBlacklistSources(list.flat());
   }
 
-  async getHtmlInPuppeteer(url: string): Promise<any> {
-    console.log('`${this.baseURL}${url}`', `${this.baseURL}${url}`);
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--disable-infobars',
-        '--disable-blink-features=AutomationControlled',
-      ],
-      devtools: false,
-      ignoreDefaultArgs: ['--enable-automation'],
-    });
-    const page = (await browser.pages())[0];
-    await page.setRequestInterception(true);
-    page.on('request', (req: any) => {
-      if (req.resourceType() == 'font') {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
-    await page.evaluateOnNewDocument(() => {
-      // Pass webdriver check
-      Object.defineProperty(navigator, 'webdriver', {
-        get: () => false,
-      });
-    });
-
-    await page.emulate(KnownDevices['iPhone 13']);
-    // Navigate to a website to see the user agent in action
-    await page.goto(`${this.baseURL}${url}`, {
-      waitUntil: 'domcontentloaded',
-    });
-    await page.waitForTimeout(5000);
-    const html = await page.content();
-    await browser.close();
-    return html;
+  protected async removeBlacklistSources<T extends SourceManga>(sources: T[]) {
+    return sources.filter((source) =>
+      source?.titles.some((title) => !this.blacklistTitles.includes(title)),
+    );
   }
 }

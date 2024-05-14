@@ -19,6 +19,7 @@
   "devDependencies": {
     "@types/inquirer": "^9.0.7",
     "@types/jsdom": "^21.1.6",
+    "@types/lodash": "^4.17.1",
     "@types/node": "^20.12.11",
     "@typescript-eslint/eslint-plugin": "^7.8.0",
     "@typescript-eslint/parser": "^7.8.0",
@@ -39,10 +40,6 @@
     "axios": "^1.6.8",
     "cheerio": "^1.0.0-rc.12",
     "commander": "^12.0.0",
-    "got": "^14.2.1",
-    "jsdom": "^24.0.0",
-    "node-request-promise": "^1.0.1",
-    "puppeteer": "21.5.2",
     "winston": "3.6.0",
     "winston-daily-rotate-file": "4.6.1"
   }

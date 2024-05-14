@@ -1,9 +1,8 @@
 import fs from 'fs';
-import { handlePath } from '../utils';
 import { MangaScraper } from '../core/MangaScraper';
+import { handlePath } from '../utils';
 
 export type MangaScraperId = string;
-export type AnimeScraperId = string;
 
 const readScrapers = (path: string) => {
   const scraperFiles = fs
@@ -30,12 +29,10 @@ export const getMangaScraper = (id: MangaScraperId) => {
   return mangaScrapers[id];
 };
 
-export const getScraper = (id: MangaScraperId | AnimeScraperId) => {
-  // We do not support anime scraper yet
+export const getScraper = (id: MangaScraperId) => {
   if (id in mangaScrapers) {
     return getMangaScraper(id);
   }
-
   throw new Error(`Unknown scraper id: ${id}`);
 };
 
