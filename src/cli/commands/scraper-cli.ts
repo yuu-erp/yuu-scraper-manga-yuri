@@ -1,9 +1,10 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import scrapers, { getScraper } from '../../scrapers';
-import { MangaScraper } from '../../core/MangaScraper';
-import { readFile } from '../../utils';
 import { mangaActions } from '../../actions/manga';
+import { MangaScraper } from '../../core/MangaScraper';
+import scrapers, { getScraper } from '../../scrapers';
+import { readFile } from '../../utils';
+import { insertData } from '../../core/Action';
 
 export default (program: Command) => {
   return program
@@ -45,7 +46,7 @@ export default (program: Command) => {
         throw new Error(`We do not support anime scraper yet: ${id}`);
       }
       const scraper = getScraper(id);
-      scraper.init();
+      await scraper.init();
 
       const mangaScraper = scraper as MangaScraper;
       const sourcesManga = await readFileAndFallback(`./data/${id}.json`, () =>
@@ -55,9 +56,7 @@ export default (program: Command) => {
         `./data/${id}-full.json`,
         () => mangaScraper.scrapeAnilist(sourcesManga),
       );
-
-      console.log('mangaActions : ', mangaActions);
-      console.log('mergedSources : ', mergedSources);
+      await insertData(mergedSources, mangaActions, 'anilistId');
     });
 };
 

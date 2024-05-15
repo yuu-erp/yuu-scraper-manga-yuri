@@ -4,6 +4,8 @@ import Monitor from './Monitor';
 import { isVietnamese } from '../utils';
 import { SourceManga } from '../types/data';
 import logger from '../logger';
+import PostgresDB from '../database/postgresDB';
+import { DatabaseConfig } from '../configs/database-configs';
 export interface Proxy {
   ignoreReqHeaders?: boolean;
   followRedirect?: boolean;
@@ -25,7 +27,7 @@ export default class Scraper {
   locales: string[];
   blacklistTitles: string[];
   scrapingPages: number;
-
+  postgresDB: PostgresDB;
   constructor(
     id: string,
     name: string,
@@ -55,17 +57,19 @@ export default class Scraper {
     this.name = name;
     this.blacklistTitles = ['live action'];
     this.scrapingPages = 2;
+
+    this.postgresDB = new PostgresDB(DatabaseConfig);
   }
 
   /**
    * Run this method to push scraper's info to Supabase
    */
-  init() {
-    return {
-      name: this.name,
-      id: this.id,
-      locales: this.locales,
-    };
+  async init() {
+    await this.postgresDB.connect();
+    await this.postgresDB.deleteTable('manga_source');
+    await this.postgresDB.deleteTable('chapters');
+    await this.postgresDB.disconnect();
+    return;
   }
 
   /**
@@ -135,12 +139,6 @@ export default class Scraper {
         console.log(`Scraped page ${page} - ${this.id}`);
 
         if (result.length === 0) {
-          isEnd = true;
-
-          break;
-        }
-
-        if (page === 10) {
           isEnd = true;
 
           break;

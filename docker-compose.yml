@@ -6,6 +6,7 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bQ5UroNM9PqslBs}
+
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     restart: on-failure
