@@ -3,7 +3,7 @@ import chunk from 'lodash/chunk';
 import uniqBy from 'lodash/uniqBy';
 import uniqWith from 'lodash/uniqWith';
 import { pickArrayOfObject } from '../utils';
-import PostgresDB from '../database/postgresDB';
+import PostgresDB from '../lib/postgresDB';
 import { DatabaseConfig } from '../configs/database-configs';
 
 export type InsertAction<T, K> = {

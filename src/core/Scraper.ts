@@ -1,21 +1,10 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
+import axiosRetry from 'axios-retry';
+import { Proxy, SourceManga } from '../types/data';
 import { RequireAtLeastOne } from '../types/utils';
-import Monitor from './Monitor';
 import { isVietnamese } from '../utils';
-import { SourceManga } from '../types/data';
-import logger from '../logger';
-import PostgresDB from '../database/postgresDB';
-import { DatabaseConfig } from '../configs/database-configs';
-export interface Proxy {
-  ignoreReqHeaders?: boolean;
-  followRedirect?: boolean;
-  redirectWithProxy?: boolean;
-  decompress?: boolean;
-  appendReqHeaders?: Record<string, string>;
-  appendResHeaders?: Record<string, string>;
-  deleteReqHeaders?: string[];
-  deleteResHeaders?: string[];
-}
+import Monitor from './Monitor';
+import { DiscordClient } from '../lib/discord';
 
 export default class Scraper {
   client: AxiosInstance;
@@ -27,7 +16,7 @@ export default class Scraper {
   locales: string[];
   blacklistTitles: string[];
   scrapingPages: number;
-  postgresDB: PostgresDB;
+  discordClient: DiscordClient;
   constructor(
     id: string,
     name: string,
@@ -57,20 +46,28 @@ export default class Scraper {
     this.name = name;
     this.blacklistTitles = ['live action'];
     this.scrapingPages = 2;
+    this.discordClient = new DiscordClient();
+    // this.loggerDiscord = new LoggerDiscord();
 
-    this.postgresDB = new PostgresDB(DatabaseConfig);
+    axiosRetry(this.client, { retries: 3 });
+
+    const axiosErrorLogger = (error: AxiosError) => {
+      // return this.loggerDiscord.logError(error);
+      return error;
+    };
+
+    this.client.interceptors.request.use((config) => config, axiosErrorLogger);
+
+    this.client.interceptors.response.use(
+      (response) => response,
+      axiosErrorLogger,
+    );
   }
 
   /**
    * Run this method to push scraper's info to Supabase
    */
-  async init() {
-    await this.postgresDB.connect();
-    await this.postgresDB.deleteTable('manga_source');
-    await this.postgresDB.deleteTable('chapters');
-    await this.postgresDB.disconnect();
-    return;
-  }
+  async init() {}
 
   /**
    * The monitor will run this method to check if the monitor should run onChange
@@ -127,10 +124,10 @@ export default class Scraper {
     while (!isEnd) {
       try {
         const result = await scrapeFn(page).catch((err) =>
-          logger.error('error', err),
+          console.log('err:', err),
         );
 
-        if (!result) {
+        if (!result || page == 2) {
           isEnd = true;
 
           break;

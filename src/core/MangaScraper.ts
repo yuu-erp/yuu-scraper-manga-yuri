@@ -2,7 +2,7 @@ import { AxiosRequestConfig } from 'axios';
 import Scraper from './Scraper';
 import { RequireAtLeastOne } from '../types/utils';
 import { MediaType } from '../types/anilist';
-import { Manga, SourceManga } from '../types/data';
+import { GetImagesQuery, ImageSource, Manga, SourceManga } from '../types/data';
 import { readFile, writeFile } from '../utils';
 import { getRetriesId } from '../utils/anilist';
 import { mergeMangaInfo } from '../utils/data';
@@ -42,7 +42,9 @@ export class MangaScraper extends Scraper {
       sources = JSON.parse(readFile(`./data/${this.id}.json`));
     }
     if (!sources?.length) {
-      throw new Error('No sources');
+      this.discordClient.logError({ message: 'No sources' });
+      // throw new Error('No sources');
+      return;
     }
     for (const source of sources) {
       if (!source?.titles?.length) continue;
@@ -69,5 +71,9 @@ export class MangaScraper extends Scraper {
 
   async scrapeMangaPage(_page: number): Promise<any> {
     throw new Error('scrapeMangaPage Not implemented');
+  }
+
+  async getImages(_ids: GetImagesQuery): Promise<ImageSource[]> {
+    throw new Error('getImagesNot implemented');
   }
 }
