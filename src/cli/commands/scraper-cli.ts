@@ -44,22 +44,16 @@ export default (program: Command) => {
         throw new Error(`We do not support anime scraper yet: ${id}`);
       }
       const scraper = getScraper(id);
-      scraper.discordClient.login();
 
-      scraper.discordClient.client.once('ready', async () => {
-        console.log('Discord on ready!');
-        const mangaScraper = scraper as MangaScraper;
-        const sourcesManga = await readFileAndFallback(
-          `./data/${id}.json`,
-          () => mangaScraper.scrapeAllMangaPages(),
-        );
-        console.log('sourcesManga: ', sourcesManga);
-        const mergedSources = await readFileAndFallback(
-          `./data/${id}-full.json`,
-          () => mangaScraper.scrapeAnilist(sourcesManga),
-        );
-        console.log('mergedSources: ', mergedSources);
-      });
+      const mangaScraper = scraper as MangaScraper;
+      const sourcesManga = await readFileAndFallback(`./data/${id}.json`, () =>
+        mangaScraper.scrapeAllMangaPages(),
+      );
+      const mergedSources = await readFileAndFallback(
+        `./data/${id}-full.json`,
+        () => mangaScraper.scrapeAnilist(sourcesManga),
+      );
+      console.log('mergedSources: ', mergedSources);
       // await insertData(mergedSources, mangaActions, 'anilistId');
     });
 };

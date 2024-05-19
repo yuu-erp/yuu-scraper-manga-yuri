@@ -27,7 +27,7 @@ export default class Scraper {
         referer: axiosConfig.baseURL,
         origin: axiosConfig.baseURL,
       },
-      timeout: 20000,
+      // timeout: 60000,
       ...axiosConfig,
     };
     this.client = axios.create(config);
@@ -127,7 +127,7 @@ export default class Scraper {
           console.log('err:', err),
         );
 
-        if (!result || page == 2) {
+        if (!result) {
           isEnd = true;
 
           break;
@@ -140,7 +140,7 @@ export default class Scraper {
 
           break;
         }
-        page++;
+        // page++;
 
         list.push(result);
       } catch (err) {

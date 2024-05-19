@@ -185,7 +185,6 @@ export const getIdByTitle = async <T extends MediaType>(
     }
 
     const data = (await response.json()) as { data: { Media: Media } };
-    console.log('data: ', JSON.stringify(data));
     if (!data || !data.data) return null;
 
     const media = data.data.Media;

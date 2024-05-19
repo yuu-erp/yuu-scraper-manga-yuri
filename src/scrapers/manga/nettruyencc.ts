@@ -1,7 +1,8 @@
 import cheerio from 'cheerio';
 import { MangaScraper } from '../../core/MangaScraper';
-import { GetImagesQuery, SourceChapter, SourceManga } from '../../types/data';
-import { fulfilledPromises, readFile, writeFile } from '../../utils';
+import { SourceChapter, SourceManga } from '../../types/data';
+// import { fulfilledPromises } from '../../utils';
+import FormData from 'form-data';
 
 export default class NettruyenScraper extends MangaScraper {
   constructor() {
@@ -29,25 +30,36 @@ export default class NettruyenScraper extends MangaScraper {
     return oldTitle === newTitle;
   }
 
-  async scrapeMangaPage(page: number): Promise<SourceManga[]> {
+  async scrapeMangaPage(page: number): Promise<SourceManga[] | any> {
+    // try {
+    //   const { data } = await this.client.get('/?page=' + page);
+    //   // const oldPage = JSON.parse(readFile('./data/oldPage.txt'));
+    //   // if (this.shouldMonitorChange(oldPage, data)) {
+    //   //   throw new Error('No update');
+    //   // }
+    //   // writeFile(`./data/oldPage.txt`, JSON.stringify(data, null, 2));
+    //   const $ = cheerio.load(data);
+    //   const mangaList = $('.items .item');
+    //   return fulfilledPromises(
+    //     mangaList.toArray().map((el) => {
+    //       const manga = $(el);
+    //       const slug = this.urlToSourceId(manga.find('a').attr('href'));
+    //       return this.scrapeManga(slug);
+    //     }),
+    //   );
+    // } catch (err) {
+    //   console.log('scrapeMangaPage - err: ', err);
+    // }
     try {
-      const { data } = await this.client.get('/?page=' + page);
-      const oldPage = JSON.parse(readFile('./data/oldPage.txt'));
-      if (this.shouldMonitorChange(oldPage, data)) {
-        throw new Error('No update');
-      }
-      writeFile(`./data/oldPage.txt`, JSON.stringify(data, null, 2));
-      const $ = cheerio.load(data);
-      const mangaList = $('.items .item');
-      return fulfilledPromises(
-        mangaList.toArray().map((el) => {
-          const manga = $(el);
-          const slug = this.urlToSourceId(manga.find('a').attr('href'));
-          return this.scrapeManga(slug);
-        }),
+      console.log('page: ', page);
+      const images = await this.getImages(
+        'haite-kudasai-takamine-san/chuong-19/512037',
       );
-    } catch (err) {
-      console.log('scrapeMangaPage - err: ', err);
+      console.log('images: ', images);
+      const uploadedImages = await this.getImageAndUpload(images);
+      console.log('uploadedImages: ', uploadedImages);
+    } catch (error) {
+      console.log('error:', error);
     }
   }
 
@@ -71,20 +83,27 @@ export default class NettruyenScraper extends MangaScraper {
     ) {
       return null;
     }
-
-    const chapters: SourceChapter[] = $('div.chapter')
-      .toArray()
-      .map((el) => {
-        const chapter = $(el).find('a');
-        const chapterName = chapter.text().trim();
-        const chapter_id = chapter.data('id').toString();
-
-        return {
-          name: chapterName,
-          sourceChapterId: chapter_id,
-          sourceMediaId: sourceId,
-        };
-      });
+    const chapters: SourceChapter[] = await Promise.all(
+      $('div.chapter')
+        .toArray()
+        .map(async (el) => {
+          const chapter = $(el).find('a');
+          const chapterName = chapter.text().trim();
+          const chapter_id = chapter.data('id').toString();
+          const urlChapterImages = this.urlToChapterImages(
+            chapter.attr('href'),
+          );
+          console.log('urlChapterImages: ', urlChapterImages);
+          const images = await this.getImages(urlChapterImages);
+          console.log('images: ', images);
+          return {
+            name: chapterName,
+            sourceChapterId: chapter_id,
+            sourceMediaId: sourceId,
+            images: [],
+          };
+        }),
+    );
 
     return {
       chapters,
@@ -94,39 +113,82 @@ export default class NettruyenScraper extends MangaScraper {
     };
   }
 
-  async getImages(query: GetImagesQuery) {
-    const { source_media_id, chapter_id } = query;
-    const { data } = await this.client.get(
-      `/truyen-tranh/${source_media_id}/chap-0/${chapter_id}`,
-    );
-
+  async getImages(url: string): Promise<string[]> {
+    const { data } = await this.client.get(`/truyen-tranh/${url}`);
     return this.composeImages(data);
   }
 
-  composeImages(html: string) {
+  async composeImages(html: string) {
     const $ = cheerio.load(html);
+    const images = $('.page-chapter img'); // Chọn trực tiếp các thẻ img bên trong .page-chapter
 
-    const images = $('.page-chapter');
-
-    return images.toArray().map((el) => {
-      const imageEl = $(el).find('img');
-      const source = imageEl.data('original') as string;
-
+    const imageUrls = images.toArray().map((el) => {
+      const imageEl = $(el);
+      const source = imageEl.attr('data-src') as string;
       const protocols = ['http', 'https'];
-
       const image = protocols.some((protocol) => source.includes(protocol))
         ? source
         : `https:${source}`;
-
-      return {
-        image,
-        useProxy: true,
-      };
+      return image;
     });
+
+    return imageUrls;
+  }
+
+  async getImageAndUpload(imageUrls: string[]) {
+    try {
+      const uploadedImages = [];
+      for (const imageUrl of imageUrls) {
+        const response = await this.client.get(imageUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            'sec-ch-ua':
+              '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            Referer: 'https://nettruyencc.com/',
+            'sec-ch-ua-mobile': '?0',
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'sec-ch-ua-platform': '"macOS"',
+          },
+        });
+
+        console.log('response: ', response.data);
+        const form = new FormData();
+        const buffer = Buffer.from(response.data, 'binary');
+        const filename = imageUrl.split('/').pop();
+
+        form.append('file', buffer, filename);
+
+        const uploadResponse = await this.client.post(
+          'http://localhost:3000/upload',
+          form,
+          {
+            headers: {
+              ...form.getHeaders(),
+            },
+          },
+        );
+
+        uploadedImages.push(uploadResponse.data);
+
+        // Chờ 2 giây trước khi thực hiện tải và upload ảnh tiếp theo
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
+      return uploadedImages;
+    } catch (error) {
+      console.error('Error downloading or uploading images:', error);
+      throw error;
+    }
   }
 
   urlToSourceId(url: string) {
     const splitted = url.split('/');
+    return splitted[splitted.length - 1];
+  }
+
+  urlToChapterImages(url: string) {
+    const splitted = url.split('/truyen-tranh/');
     return splitted[splitted.length - 1];
   }
 }

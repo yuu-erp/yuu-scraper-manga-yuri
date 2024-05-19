@@ -19,11 +19,16 @@ export type MediaUnit = {
   section?: string;
 };
 
+export interface ChapterImages {
+  image: string;
+  useProxy: boolean;
+}
 export interface SourceChapter {
   name: string;
   sourceChapterId: string;
   sourceMediaId: string;
   section?: string;
+  images: ChapterImages[];
 }
 
 export interface SourceMediaConnection {
