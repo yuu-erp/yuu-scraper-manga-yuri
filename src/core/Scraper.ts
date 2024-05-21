@@ -4,7 +4,6 @@ import { Proxy, SourceManga } from '../types/data';
 import { RequireAtLeastOne } from '../types/utils';
 import { isVietnamese } from '../utils';
 import Monitor from './Monitor';
-import { DiscordClient } from '../lib/discord';
 
 export default class Scraper {
   client: AxiosInstance;
@@ -16,7 +15,6 @@ export default class Scraper {
   locales: string[];
   blacklistTitles: string[];
   scrapingPages: number;
-  discordClient: DiscordClient;
   constructor(
     id: string,
     name: string,
@@ -27,7 +25,7 @@ export default class Scraper {
         referer: axiosConfig.baseURL,
         origin: axiosConfig.baseURL,
       },
-      // timeout: 60000,
+      // timeout: 20000,
       ...axiosConfig,
     };
     this.client = axios.create(config);
@@ -46,8 +44,6 @@ export default class Scraper {
     this.name = name;
     this.blacklistTitles = ['live action'];
     this.scrapingPages = 2;
-    this.discordClient = new DiscordClient();
-    // this.loggerDiscord = new LoggerDiscord();
 
     axiosRetry(this.client, { retries: 3 });
 
@@ -121,7 +117,7 @@ export default class Scraper {
     let isEnd = false;
     let page = 1;
 
-    while (!isEnd) {
+    while (!isEnd || page === 2) {
       try {
         const result = await scrapeFn(page).catch((err) =>
           console.log('err:', err),
@@ -140,7 +136,7 @@ export default class Scraper {
 
           break;
         }
-        // page++;
+        page++;
 
         list.push(result);
       } catch (err) {

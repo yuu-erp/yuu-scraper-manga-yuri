@@ -28,7 +28,7 @@ export interface SourceChapter {
   sourceChapterId: string;
   sourceMediaId: string;
   section?: string;
-  images: ChapterImages[];
+  images: any[];
 }
 
 export interface SourceMediaConnection {

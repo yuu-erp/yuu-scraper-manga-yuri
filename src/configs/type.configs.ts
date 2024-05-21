@@ -1,7 +1,4 @@
 export interface IAppConfigs {
-  discord_token: string;
-  discord_logger_channel_id: string;
-  discord_webhook_url: string;
   port: number;
 }
 
@@ -11,4 +8,10 @@ export interface IDatabaseConfig {
   database: string;
   password: string;
   port: number;
+}
+
+export interface ICloudinaryConfigs {
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
 }

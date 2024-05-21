@@ -1,8 +1,8 @@
-import cheerio from 'cheerio';
 import { MangaScraper } from '../../core/MangaScraper';
 import { SourceChapter, SourceManga } from '../../types/data';
 // import { fulfilledPromises } from '../../utils';
 import FormData from 'form-data';
+import cheerio from 'cheerio'
 
 export default class NettruyenScraper extends MangaScraper {
   constructor() {
