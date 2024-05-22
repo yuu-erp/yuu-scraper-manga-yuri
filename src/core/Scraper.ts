@@ -6,6 +6,8 @@ import { SourceManga } from '../types/data';
 import logger from '../logger';
 import PostgresDB from '../database/postgresDB';
 import { DatabaseConfig } from '../configs/database-configs';
+import puppeteer, { KnownDevices } from 'puppeteer';
+
 export interface Proxy {
   ignoreReqHeaders?: boolean;
   followRedirect?: boolean;
@@ -28,6 +30,7 @@ export default class Scraper {
   blacklistTitles: string[];
   scrapingPages: number;
   postgresDB: PostgresDB;
+  iPhone: any;
   constructor(
     id: string,
     name: string,
@@ -45,7 +48,6 @@ export default class Scraper {
     this.baseURL = axiosConfig.baseURL;
 
     const defaultMonitorRequest = async () => {
-      console.log('defaultMonitorRequest');
       const { data } = await this.client.get('/');
       return data;
     };
@@ -57,7 +59,7 @@ export default class Scraper {
     this.name = name;
     this.blacklistTitles = ['live action'];
     this.scrapingPages = 2;
-
+    this.iPhone = KnownDevices['iPhone 13'];
     this.postgresDB = new PostgresDB(DatabaseConfig);
   }
 
@@ -130,7 +132,7 @@ export default class Scraper {
           logger.error('error', err),
         );
 
-        if (!result) {
+        if (!result || page === 1) {
           isEnd = true;
 
           break;
@@ -158,5 +160,49 @@ export default class Scraper {
     return sources.filter((source) =>
       source?.titles.some((title) => !this.blacklistTitles.includes(title)),
     );
+  }
+
+  async clientPuppeteer(url: string) {
+    console.log('clientPuppeteer: ', this.baseURL + url);
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--disable-infobars',
+        '--disable-blink-features=AutomationControlled',
+      ],
+      devtools: false,
+      ignoreDefaultArgs: ['--enable-automation'],
+    });
+    try {
+      const page = (await browser.pages())[0];
+      await page.setRequestInterception(true);
+      page.on('request', (req: any) => {
+        if (req.resourceType() == 'font') {
+          req.abort();
+        } else {
+          req.continue();
+        }
+      });
+      await page.evaluateOnNewDocument(() => {
+        // Pass webdriver check
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => false,
+        });
+      });
+
+      await page.emulate(this.iPhone);
+      // Navigate to a website to see the user agent in action
+      await page.goto('https://yurineko.net/', {
+        waitUntil: 'domcontentloaded',
+      });
+      await page.waitForTimeout(2000);
+      await page.waitForSelector('.wrapper');
+      const html = await page.content();
+
+      await browser.close();
+      return html;
+    } catch (error) {
+      await browser.close();
+    }
   }
 }

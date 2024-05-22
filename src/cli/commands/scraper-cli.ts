@@ -1,10 +1,10 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { mangaActions } from '../../actions/manga';
+// import { mangaActions } from '../../actions/manga';
 import { MangaScraper } from '../../core/MangaScraper';
 import scrapers, { getScraper } from '../../scrapers';
 import { readFile } from '../../utils';
-import { insertData } from '../../core/Action';
+// import { insertData } from '../../core/Action';
 
 export default (program: Command) => {
   return program
@@ -46,17 +46,18 @@ export default (program: Command) => {
         throw new Error(`We do not support anime scraper yet: ${id}`);
       }
       const scraper = getScraper(id);
-      await scraper.init();
+      // await scraper.init();
 
       const mangaScraper = scraper as MangaScraper;
       const sourcesManga = await readFileAndFallback(`./data/${id}.json`, () =>
         mangaScraper.scrapeAllMangaPages(),
       );
-      const mergedSources = await readFileAndFallback(
-        `./data/${id}-full.json`,
-        () => mangaScraper.scrapeAnilist(sourcesManga),
-      );
-      await insertData(mergedSources, mangaActions, 'anilistId');
+      console.log('sourcesManga: ', sourcesManga);
+      // const mergedSources = await readFileAndFallback(
+      //   `./data/${id}-full.json`,
+      //   () => mangaScraper.scrapeAnilist(sourcesManga),
+      // );
+      // await insertData(mergedSources, mangaActions, 'anilistId');
     });
 };
 
